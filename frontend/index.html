@@ -395,7 +395,7 @@
 </main>
 
 <script>
-  const API = 'http://localhost:8000';
+  const API = 'https://tradeguardian-production-a105.up.railway.app';
 
   // ── State ──────────────────────────────────────────────────────────────────
   let currentTradeId   = null;
@@ -529,7 +529,7 @@
       resetChecklist();
       await loadDashboard();
     } catch (e) {
-      showError('Could not reach backend. Is it running on localhost:8000?');
+      showError('Could not reach backend. Is it running on https://tradeguardian-production-a105.up.railway.app?');
     } finally {
       btn.textContent = '⚡ CHECK TRADE';
       btn.classList.remove('pulsing');
