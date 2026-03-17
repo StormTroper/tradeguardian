@@ -75,10 +75,13 @@ class CompleteCooldownRequest(BaseModel):
 
 @app.get("/")
 def root():
-    frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html")
-    if os.path.exists(frontend_path):
-        return FileResponse(frontend_path)
-    return {"status": "TradeGuardian AI v0.2 running"}
+    same_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+    parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "index.html")
+    if os.path.exists(same_dir):
+        return FileResponse(same_dir)
+    if os.path.exists(parent_dir):
+        return FileResponse(parent_dir)
+    return {"status": "frontend not found"}
 
 
 @app.post("/check-trade")
