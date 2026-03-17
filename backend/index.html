@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeGuardian AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0d0f;
+    --surface: #13161a;
+    --surface2: #1a1e24;
+    --border: #1f2328;
+    --border-bright: #2d333b;
+    --text: #e2e8f0;
+    --muted: #6b7280;
+    --green: #22c55e;
+    --green-dim: #14532d;
+    --yellow: #eab308;
+    --yellow-dim: #422006;
+    --red: #ef4444;
+    --red-dim: #450a0a;
+    --blue: #3b82f6;
+    --blue-dim: #1e3a5f;
+    --purple: #a855f7;
+    --purple-dim: #2e1065;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 270px 1fr;
+    grid-template-rows: 56px 1fr;
+  }
+
+  /* ── Header ── */
+  header {
+    grid-column: 1/-1;
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+  }
+  .logo { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
+  .logo-icon { width: 28px; height: 28px; background: var(--green); border-radius: 5px; display: grid; place-items: center; color: #000; font-size: 14px; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .user-badge { font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--bg); border: 1px solid var(--border-bright); padding: 4px 10px; border-radius: 5px; cursor: pointer; }
+  .user-badge:hover { border-color: var(--blue); color: var(--text); }
+
+  /* ── Tabs in header ── */
+  .nav-tabs { display: flex; gap: 2px; margin-left: 24px; }
+  .nav-tab { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; background: transparent; color: var(--muted); transition: all 0.15s; }
+  .nav-tab:hover { color: var(--text); background: var(--border); }
+  .nav-tab.active { background: var(--border-bright); color: var(--text); }
+
+  /* ── Sidebar ── */
+  aside {
+    border-right: 1px solid var(--border);
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    overflow-y: auto;
+    background: var(--surface);
+  }
+  .section-label { font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .stat-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-value { font-family: var(--mono); font-weight: 600; }
+  .stat-label { color: var(--muted); font-size: 12px; }
+
+  label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 3px; font-family: var(--mono); }
+  input[type="number"], input[type="text"], textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border-bright);
+    color: var(--text); padding: 7px 10px; border-radius: 6px; font-family: var(--mono); font-size: 13px;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--blue); }
+  .settings-group { display: flex; flex-direction: column; gap: 8px; }
+  .btn-save { margin-top: 4px; padding: 8px; border-radius: 6px; background: var(--border-bright); color: var(--text); font-family: var(--sans); font-weight: 700; font-size: 13px; cursor: pointer; border: none; width: 100%; transition: background 0.15s; }
+  .btn-save:hover { background: #3d444d; }
+
+  /* ── Main ── */
+  main { padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+  .page { display: none; flex-direction: column; gap: 20px; }
+  .page.active { display: flex; }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+  .card-body { padding: 20px; }
+
+  /* ── Cooldown Overlay ── */
+  #cooldown-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    place-items: center;
+  }
+  #cooldown-overlay.active { display: grid; }
+  .cooldown-box {
+    background: var(--surface);
+    border: 1px solid var(--red);
+    border-radius: 16px;
+    padding: 36px;
+    max-width: 480px;
+    width: 90%;
+    text-align: center;
+  }
+  .cooldown-icon { font-size: 48px; margin-bottom: 16px; }
+  .cooldown-title { font-size: 22px; font-weight: 800; color: var(--red); margin-bottom: 8px; }
+  .cooldown-reason { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+  .cooldown-timer { font-family: var(--mono); font-size: 42px; font-weight: 600; color: var(--red); margin: 16px 0; }
+  .cooldown-prompt { font-size: 14px; font-weight: 700; margin: 16px 0 8px; color: var(--text); text-align: left; }
+  .cooldown-reflection { resize: vertical; min-height: 80px; margin-bottom: 12px; }
+  .btn-unlock { padding: 12px; border-radius: 8px; background: var(--red-dim); border: 1px solid var(--red); color: var(--red); font-family: var(--sans); font-weight: 800; font-size: 15px; cursor: pointer; width: 100%; transition: all 0.15s; }
+  .btn-unlock:hover { background: #7f1d1d; }
+  .btn-unlock:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Checklist ── */
+  .checklist-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .checklist-item { background: var(--surface2); border: 1px solid var(--border-bright); border-radius: 8px; padding: 12px 14px; }
+  .checklist-q { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+  .checklist-btns { display: flex; gap: 8px; }
+  .cq-btn { flex: 1; padding: 7px; border-radius: 6px; font-family: var(--sans); font-weight: 700; font-size: 12px; cursor: pointer; border: 1px solid var(--border-bright); background: var(--bg); color: var(--muted); transition: all 0.15s; }
+  .cq-btn.selected-yes { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .cq-btn.selected-no  { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+  .emotion-btns { display: flex; gap: 6px; }
+  .emotion-btn { flex: 1; padding: 6px 4px; border-radius: 6px; font-family: var(--mono); font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border-bright); background: var(--bg); color: var(--muted); transition: all 0.15s; text-align: center; }
+  .emotion-btn.selected { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+
+  /* ── Trade Checker ── */
+  .checker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .btn-check { grid-column: 1/-1; padding: 13px; border-radius: 8px; background: #1a2e1a; border: 1px solid var(--green); color: var(--green); font-family: var(--sans); font-weight: 800; font-size: 15px; cursor: pointer; letter-spacing: 0.5px; transition: all 0.15s; }
+  .btn-check:hover { background: var(--green-dim); }
+
+  /* ── Result Banner ── */
+  #result-banner { display: none; border-radius: 10px; padding: 16px 18px; margin-top: 14px; }
+  #result-banner.approved { background: var(--green-dim); border: 1px solid var(--green); }
+  #result-banner.warning  { background: var(--yellow-dim); border: 1px solid var(--yellow); }
+  #result-banner.rejected, #result-banner.blocked { background: var(--red-dim); border: 1px solid var(--red); }
+  .result-status { font-size: 17px; font-weight: 800; margin-bottom: 5px; }
+  .result-reason { font-family: var(--mono); font-size: 13px; line-height: 1.6; opacity: 0.85; }
+  .result-meta { margin-top: 10px; display: flex; gap: 18px; flex-wrap: wrap; }
+  .result-meta-item { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .result-meta-item span { display: block; font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px; }
+
+  /* Checklist flags */
+  .checklist-flags { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .cflag { background: #1c1710; border: 1px solid var(--yellow); color: var(--yellow); border-radius: 6px; padding: 8px 12px; font-family: var(--mono); font-size: 12px; }
+
+  /* Close trade */
+  #close-trade-row { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); gap: 8px; align-items: center; flex-wrap: wrap; }
+  .close-label { font-size: 12px; color: var(--muted); }
+  .pnl-input { width: 90px !important; padding: 5px 8px !important; }
+  .btn-win  { padding: 6px 14px; border-radius: 6px; background: var(--green-dim); border: 1px solid var(--green); color: var(--green); font-family: var(--sans); font-weight: 700; font-size: 13px; cursor: pointer; }
+  .btn-loss { padding: 6px 14px; border-radius: 6px; background: var(--red-dim); border: 1px solid var(--red); color: var(--red); font-family: var(--sans); font-weight: 700; font-size: 13px; cursor: pointer; }
+
+  /* Warnings */
+  #warnings-section { display: none; flex-direction: column; gap: 8px; }
+  .warning-pill { background: #1c1710; border: 1px solid var(--yellow); color: var(--yellow); border-radius: 8px; padding: 10px 14px; font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+
+  /* ── Trade Log ── */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--mono); }
+  th { padding: 9px 14px; text-align: left; color: var(--muted); font-weight: 400; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; }
+  .badge-approved { background: var(--green-dim); color: var(--green); }
+  .badge-warning  { background: var(--yellow-dim); color: var(--yellow); }
+  .badge-rejected { background: var(--red-dim); color: var(--red); }
+  .badge-win      { background: var(--green-dim); color: var(--green); }
+  .badge-loss     { background: var(--red-dim); color: var(--red); }
+  .badge-open     { background: var(--blue-dim); color: var(--blue); }
+  .empty-state { padding: 36px; text-align: center; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+
+  /* ── Violations Page ── */
+  .violations-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .vstat-card { background: var(--surface2); border: 1px solid var(--border-bright); border-radius: 10px; padding: 16px; }
+  .vstat-number { font-family: var(--mono); font-size: 28px; font-weight: 600; }
+  .vstat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .violation-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .violation-row:last-child { border-bottom: none; }
+  .vtype { font-family: var(--mono); font-size: 11px; background: var(--red-dim); color: var(--red); padding: 2px 8px; border-radius: 4px; }
+  .vtype-streak { background: var(--yellow-dim); color: var(--yellow); }
+  .vtype-daily  { background: var(--purple-dim); color: var(--purple); }
+
+  /* ── Insights Page ── */
+  .insight-card { background: var(--surface2); border: 1px solid var(--border-bright); border-radius: 10px; padding: 16px; }
+  .insight-label { font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+  .insight-bars { display: flex; flex-direction: column; gap: 8px; }
+  .insight-bar-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .insight-bar-label { width: 80px; color: var(--muted); font-family: var(--mono); font-size: 11px; flex-shrink: 0; }
+  .insight-bar-bg { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .insight-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .insight-bar-val { width: 40px; text-align: right; font-family: var(--mono); font-size: 11px; color: var(--text); }
+  .no-data { font-family: var(--mono); font-size: 13px; color: var(--muted); padding: 20px; text-align: center; }
+
+  /* ── Emotion grid ── */
+  .emotion-grid { display: flex; gap: 10px; margin-top: 8px; }
+  .emotion-cell { flex: 1; background: var(--border); border-radius: 8px; padding: 10px 6px; text-align: center; }
+  .emotion-cell .score { font-family: var(--mono); font-size: 18px; font-weight: 600; }
+  .emotion-cell .wr { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .emotion-cell .trades { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+  .pulsing { animation: pulse 1s infinite; }
+</style>
+</head>
+<body>
+
+<!-- ── Cooldown Overlay ── -->
+<div id="cooldown-overlay">
+  <div class="cooldown-box">
+    <div class="cooldown-icon">🛑</div>
+    <div class="cooldown-title">Mandatory Pause</div>
+    <div class="cooldown-reason" id="cd-reason"></div>
+    <div class="cooldown-timer" id="cd-timer">00:00</div>
+    <div class="cooldown-prompt">Before you can trade again, write what went wrong:</div>
+    <textarea class="cooldown-reflection" id="cd-reflection" placeholder="What happened? What will you do differently?"></textarea>
+    <button class="btn-unlock" id="cd-unlock-btn" onclick="completeCooldown()" disabled>
+      Write a reflection to unlock
+    </button>
+  </div>
+</div>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚔</div>
+    TradeGuardian
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('checker')">Checker</button>
+    <button class="nav-tab" onclick="showPage('log')">Trade Log</button>
+    <button class="nav-tab" onclick="showPage('violations')">Violations</button>
+    <button class="nav-tab" onclick="showPage('insights')">Insights</button>
+  </div>
+  <div class="header-right">
+    <span class="user-badge" id="username-badge" onclick="changeUsername()">trader1</span>
+  </div>
+</header>
+
+<!-- ── Sidebar ── -->
+<aside>
+  <div>
+    <div class="section-label">Today</div>
+    <div class="stat-row"><span class="stat-label">Trades</span><span class="stat-value" id="stat-trades">—</span></div>
+    <div class="stat-row"><span class="stat-label">Wins</span><span class="stat-value" id="stat-wins" style="color:var(--green)">—</span></div>
+    <div class="stat-row"><span class="stat-label">Losses</span><span class="stat-value" id="stat-losses" style="color:var(--red)">—</span></div>
+    <div class="stat-row"><span class="stat-label">Loss streak</span><span class="stat-value" id="stat-streak" style="color:var(--yellow)">—</span></div>
+    <div class="stat-row"><span class="stat-label">Total loss</span><span class="stat-value" id="stat-loss-total" style="color:var(--red)">—</span></div>
+    <div class="stat-row"><span class="stat-label">Violations today</span><span class="stat-value" id="stat-violations" style="color:var(--purple)">—</span></div>
+  </div>
+
+  <div>
+    <div class="section-label">Rules</div>
+    <div class="settings-group">
+      <div><label>Account Size (£)</label><input type="number" id="s-account" value="10000" min="100"></div>
+      <div><label>Max Risk per Trade (%)</label><input type="number" id="s-risk" value="2" min="0.1" max="100" step="0.1"></div>
+      <div><label>Max Trades per Day</label><input type="number" id="s-max-trades" value="5" min="1"></div>
+      <div><label>Max Daily Loss (£)</label><input type="number" id="s-max-loss" value="200" min="1"></div>
+      <div><label>Pip Value (£)</label><input type="number" id="s-pip-value" value="10" min="0.01" step="0.01"></div>
+      <div><label>Cooldown (minutes)</label><input type="number" id="s-cooldown" value="10" min="1" max="120"></div>
+      <button class="btn-save" onclick="saveSettings()">Save Rules</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<main>
+
+  <!-- ── CHECKER PAGE ── -->
+  <div class="page active" id="page-checker">
+
+    <!-- Pre-trade Checklist -->
+    <div class="card">
+      <div class="card-header">
+        Pre-Trade Checklist
+        <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">Answer before every trade</span>
+      </div>
+      <div class="card-body">
+        <div class="checklist-grid">
+
+          <div class="checklist-item">
+            <div class="checklist-q">Did you follow your entry rules?</div>
+            <div class="checklist-btns">
+              <button class="cq-btn" id="fr-yes" onclick="setChecklist('followed_rules', 1, this, 'fr')">✓ Yes</button>
+              <button class="cq-btn" id="fr-no"  onclick="setChecklist('followed_rules', 0, this, 'fr')">✗ No</button>
+            </div>
+          </div>
+
+          <div class="checklist-item">
+            <div class="checklist-q">Are you trading out of revenge / FOMO / boredom?</div>
+            <div class="checklist-btns">
+              <button class="cq-btn" id="rt-yes" onclick="setChecklist('revenge_trading', 1, this, 'rt')">✓ Yes</button>
+              <button class="cq-btn" id="rt-no"  onclick="setChecklist('revenge_trading', 0, this, 'rt')">✗ No</button>
+            </div>
+          </div>
+
+          <div class="checklist-item">
+            <div class="checklist-q">Is this a valid setup — or are you forcing it?</div>
+            <div class="checklist-btns">
+              <button class="cq-btn" id="vs-yes" onclick="setChecklist('valid_setup', 1, this, 'vs')">✓ Valid setup</button>
+              <button class="cq-btn" id="vs-no"  onclick="setChecklist('valid_setup', 0, this, 'vs')">✗ Forcing it</button>
+            </div>
+          </div>
+
+          <div class="checklist-item">
+            <div class="checklist-q">Emotion score right now (1 = calm, 5 = very emotional)</div>
+            <div class="emotion-btns">
+              <button class="emotion-btn" onclick="setEmotion(1, this)">1</button>
+              <button class="emotion-btn" onclick="setEmotion(2, this)">2</button>
+              <button class="emotion-btn" onclick="setEmotion(3, this)">3</button>
+              <button class="emotion-btn" onclick="setEmotion(4, this)">4</button>
+              <button class="emotion-btn" onclick="setEmotion(5, this)">5</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Trade inputs -->
+        <div class="checker-grid">
+          <div><label>Lot Size</label><input type="number" id="lot-size" value="0.1" min="0.01" step="0.01"></div>
+          <div><label>Stop Loss (pips)</label><input type="number" id="stop-loss" value="20" min="0"></div>
+        </div>
+        <button class="btn-check" onclick="checkTrade()">⚡ CHECK TRADE</button>
+
+        <!-- Result -->
+        <div id="result-banner">
+          <div class="result-status" id="result-status-text"></div>
+          <div class="result-reason" id="result-reason-text"></div>
+          <div class="result-meta" id="result-meta"></div>
+          <div class="checklist-flags" id="checklist-flags"></div>
+          <div id="close-trade-row">
+            <span class="close-label">Close:</span>
+            <input type="number" class="pnl-input" id="pnl-input" placeholder="P&L £" step="0.01">
+            <button class="btn-win" onclick="closeTrade('WIN')">✓ Win</button>
+            <button class="btn-loss" onclick="closeTrade('LOSS')">✗ Loss</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Behaviour Warnings -->
+    <div id="warnings-section"></div>
+
+  </div>
+
+  <!-- ── LOG PAGE ── -->
+  <div class="page" id="page-log">
+    <div class="card">
+      <div class="card-header">
+        Trade Log
+        <span style="font-family:var(--mono);font-size:11px;color:var(--muted)" id="log-count"></span>
+      </div>
+      <div id="trade-log-body"><div class="empty-state">Load your dashboard to see trade history</div></div>
+    </div>
+  </div>
+
+  <!-- ── VIOLATIONS PAGE ── -->
+  <div class="page" id="page-violations">
+    <div class="violations-grid" id="violations-stats"></div>
+    <div class="card">
+      <div class="card-header">Rule Violations This Month</div>
+      <div id="violations-list"><div class="empty-state">No violations recorded yet</div></div>
+    </div>
+  </div>
+
+  <!-- ── INSIGHTS PAGE ── -->
+  <div class="page" id="page-insights">
+    <div class="card">
+      <div class="card-header">Checklist Win Rate Impact</div>
+      <div class="card-body" id="insights-comparisons">
+        <div class="no-data">Complete at least 3 trades with checklist answers to see insights</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">Win Rate by Emotion Score</div>
+      <div class="card-body" id="insights-emotion">
+        <div class="no-data">Complete trades with emotion scores to see patterns</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  const API = 'https://tradeguardian-production-a105.up.railway.app';
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let currentTradeId   = null;
+  let activeCooldownId = null;
+  let cooldownInterval = null;
+  let checklist = {
+    followed_rules: null,
+    revenge_trading: null,
+    valid_setup: null,
+    emotion_score: null
+  };
+
+  // ── Username (remembered in localStorage) ─────────────────────────────────
+  function getUsername() {
+    return localStorage.getItem('tg_username') || 'trader1';
+  }
+
+  function changeUsername() {
+    const name = prompt('Enter your username:', getUsername());
+    if (name && name.trim()) {
+      localStorage.setItem('tg_username', name.trim());
+      document.getElementById('username-badge').textContent = name.trim();
+      loadDashboard();
+    }
+  }
+
+  // ── Pages ──────────────────────────────────────────────────────────────────
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(`page-${name}`).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // ── Checklist ─────────────────────────────────────────────────────────────
+  function setChecklist(field, value, btn, prefix) {
+    checklist[field] = value;
+    document.getElementById(`${prefix}-yes`).className = 'cq-btn';
+    document.getElementById(`${prefix}-no`).className  = 'cq-btn';
+    btn.classList.add(value === 1 ? 'selected-yes' : 'selected-no');
+  }
+
+  function setEmotion(score, btn) {
+    checklist.emotion_score = score;
+    document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+
+  function resetChecklist() {
+    checklist = { followed_rules: null, revenge_trading: null, valid_setup: null, emotion_score: null };
+    document.querySelectorAll('.cq-btn').forEach(b => b.className = 'cq-btn');
+    document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('selected'));
+  }
+
+  // ── Dashboard ──────────────────────────────────────────────────────────────
+  async function loadDashboard() {
+    const username = getUsername();
+    document.getElementById('username-badge').textContent = username;
+    try {
+      const res  = await fetch(`${API}/dashboard/${username}`);
+      const data = await res.json();
+      updateSidebar(data.today, data.loss_streak, data.violations);
+      updateSettings(data.settings);
+      renderWarnings(data.behaviour_warnings);
+      renderTradeLog(data.recent_trades);
+      renderViolations(data.violations);
+      renderInsights(data.insights);
+
+      if (data.cooldown) {
+        showCooldown(data.cooldown);
+      }
+    } catch (e) {
+      console.error('Dashboard load failed:', e);
+    }
+  }
+
+  function updateSidebar(today, streak, violations) {
+    document.getElementById('stat-trades').textContent     = today.trade_count;
+    document.getElementById('stat-wins').textContent       = today.wins;
+    document.getElementById('stat-losses').textContent     = today.losses;
+    document.getElementById('stat-streak').textContent     = streak;
+    document.getElementById('stat-loss-total').textContent = `£${today.total_loss.toFixed(2)}`;
+    document.getElementById('stat-violations').textContent = violations ? violations.today : 0;
+  }
+
+  function updateSettings(s) {
+    if (!s) return;
+    document.getElementById('s-account').value    = s.account_size;
+    document.getElementById('s-risk').value       = s.max_risk_pct;
+    document.getElementById('s-max-trades').value = s.max_trades_day;
+    document.getElementById('s-max-loss').value   = s.max_loss_day;
+    document.getElementById('s-pip-value').value  = s.pip_value;
+    document.getElementById('s-cooldown').value   = s.cooldown_minutes || 10;
+  }
+
+  // ── Check Trade ────────────────────────────────────────────────────────────
+  async function checkTrade() {
+    const username  = getUsername();
+    const lot_size  = parseFloat(document.getElementById('lot-size').value);
+    const stop_loss = parseFloat(document.getElementById('stop-loss').value);
+    if (isNaN(lot_size) || isNaN(stop_loss)) { alert('Enter valid lot size and stop loss.'); return; }
+
+    const btn = document.querySelector('.btn-check');
+    btn.textContent = 'Checking…';
+    btn.classList.add('pulsing');
+
+    try {
+      const res  = await fetch(`${API}/check-trade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username, lot_size, stop_loss_pips: stop_loss,
+          ...checklist
+        })
+      });
+      const data = await res.json();
+
+      if (data.status === 'COOLDOWN') {
+        showCooldown(data.cooldown);
+        return;
+      }
+
+      showResult(data);
+      renderWarnings(data.behaviour_warnings || []);
+      if (data.today) updateSidebar(data.today, 0, null);
+
+      if (data.cooldown) {
+        setTimeout(() => showCooldown(data.cooldown), 1000);
+      }
+
+      resetChecklist();
+      await loadDashboard();
+    } catch (e) {
+      showError('Could not reach backend. Is it running on https://tradeguardian-production-a105.up.railway.app?');
+    } finally {
+      btn.textContent = '⚡ CHECK TRADE';
+      btn.classList.remove('pulsing');
+    }
+  }
+
+  function showResult(data) {
+    const banner     = document.getElementById('result-banner');
+    const statusText = document.getElementById('result-status-text');
+    const reasonText = document.getElementById('result-reason-text');
+    const meta       = document.getElementById('result-meta');
+    const flags      = document.getElementById('checklist-flags');
+    const closeRow   = document.getElementById('close-trade-row');
+
+    const labels = {
+      APPROVED: '✅ Trade Approved',
+      WARNING:  '⚠️ Approved — High Risk',
+      REJECTED: '❌ Trade Rejected',
+      BLOCKED:  '🛑 Daily Limit Reached'
+    };
+
+    banner.className = '';
+    banner.style.display = 'block';
+    banner.classList.add(data.status.toLowerCase());
+    statusText.textContent = labels[data.status] || data.status;
+    reasonText.textContent = data.reason;
+
+    if (data.actual_risk != null) {
+      meta.innerHTML = `
+        <div class="result-meta-item">Actual Risk<span>£${data.actual_risk.toFixed(2)}</span></div>
+        <div class="result-meta-item">Allowed Risk<span>£${data.allowed_risk.toFixed(2)}</span></div>
+        <div class="result-meta-item">% of Account<span>${data.risk_percent_used.toFixed(2)}%</span></div>
+      `;
+    } else { meta.innerHTML = ''; }
+
+    // Checklist flags
+    if (data.checklist_flags && data.checklist_flags.length) {
+      flags.innerHTML = data.checklist_flags.map(f => `<div class="cflag">${f}</div>`).join('');
+    } else { flags.innerHTML = ''; }
+
+    if ((data.status === 'APPROVED' || data.status === 'WARNING') && data.trade_id) {
+      currentTradeId = data.trade_id;
+      closeRow.style.display = 'flex';
+    } else {
+      closeRow.style.display = 'none';
+      currentTradeId = null;
+    }
+  }
+
+  function showError(msg) {
+    const banner = document.getElementById('result-banner');
+    banner.style.display = 'block';
+    banner.className = 'rejected';
+    document.getElementById('result-status-text').textContent = '⚠️ Connection Error';
+    document.getElementById('result-reason-text').textContent = msg;
+    document.getElementById('result-meta').innerHTML = '';
+    document.getElementById('checklist-flags').innerHTML = '';
+    document.getElementById('close-trade-row').style.display = 'none';
+  }
+
+  // ── Close Trade ────────────────────────────────────────────────────────────
+  async function closeTrade(result) {
+    if (!currentTradeId) return;
+    const pnl = parseFloat(document.getElementById('pnl-input').value) || 0;
+    const finalPnl = result === 'LOSS' ? -Math.abs(pnl) : Math.abs(pnl);
+    await fetch(`${API}/close-trade`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trade_id: currentTradeId, result, pnl: finalPnl })
+    });
+    document.getElementById('close-trade-row').style.display = 'none';
+    document.getElementById('pnl-input').value = '';
+    currentTradeId = null;
+    await loadDashboard();
+  }
+
+  // ── Save Settings ──────────────────────────────────────────────────────────
+  async function saveSettings() {
+    const username = getUsername();
+    await fetch(`${API}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        account_size:    parseFloat(document.getElementById('s-account').value),
+        max_risk_pct:    parseFloat(document.getElementById('s-risk').value),
+        max_trades_day:  parseInt(document.getElementById('s-max-trades').value),
+        max_loss_day:    parseFloat(document.getElementById('s-max-loss').value),
+        pip_value:       parseFloat(document.getElementById('s-pip-value').value),
+        cooldown_minutes: parseInt(document.getElementById('s-cooldown').value),
+      })
+    });
+    await loadDashboard();
+  }
+
+  // ── Cooldown ───────────────────────────────────────────────────────────────
+  function showCooldown(cd) {
+    activeCooldownId = cd.id;
+    document.getElementById('cd-reason').textContent = cd.reason;
+    document.getElementById('cooldown-overlay').classList.add('active');
+    document.getElementById('cd-reflection').value = '';
+    document.getElementById('cd-unlock-btn').disabled = true;
+    document.getElementById('cd-unlock-btn').textContent = 'Write a reflection to unlock';
+
+    document.getElementById('cd-reflection').addEventListener('input', function() {
+      const enough = this.value.trim().length >= 10;
+      document.getElementById('cd-unlock-btn').disabled = !enough;
+      document.getElementById('cd-unlock-btn').textContent = enough
+        ? 'Unlock & Continue Trading'
+        : 'Write a reflection to unlock';
+    });
+
+    startCooldownTimer(cd.ends_at);
+  }
+
+  function startCooldownTimer(endsAt) {
+    if (cooldownInterval) clearInterval(cooldownInterval);
+    cooldownInterval = setInterval(() => {
+      const remaining = new Date(endsAt + 'Z') - new Date();
+      if (remaining <= 0) {
+        clearInterval(cooldownInterval);
+        document.getElementById('cd-timer').textContent = '00:00';
+        return;
+      }
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      document.getElementById('cd-timer').textContent =
+        `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+    }, 1000);
+  }
+
+  async function completeCooldown() {
+    const reflection = document.getElementById('cd-reflection').value.trim();
+    if (!reflection || reflection.length < 10) return;
+
+    await fetch(`${API}/complete-cooldown`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: getUsername(),
+        cooldown_id: activeCooldownId,
+        reflection
+      })
+    });
+
+    clearInterval(cooldownInterval);
+    document.getElementById('cooldown-overlay').classList.remove('active');
+    activeCooldownId = null;
+    await loadDashboard();
+  }
+
+  // ── Warnings ───────────────────────────────────────────────────────────────
+  function renderWarnings(warnings) {
+    const section = document.getElementById('warnings-section');
+    if (!warnings || !warnings.length) { section.style.display = 'none'; return; }
+    section.style.display = 'flex';
+    section.innerHTML = warnings.map(w => `<div class="warning-pill">${w}</div>`).join('');
+  }
+
+  // ── Trade Log ──────────────────────────────────────────────────────────────
+  function renderTradeLog(trades) {
+    const body  = document.getElementById('trade-log-body');
+    const count = document.getElementById('log-count');
+    count.textContent = `${trades.length} trades`;
+    if (!trades.length) { body.innerHTML = '<div class="empty-state">No trades yet</div>'; return; }
+
+    const rows = trades.map(t => {
+      const time   = new Date(t.traded_at).toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+      const status = `<span class="badge badge-${t.status.toLowerCase()}">${t.status}</span>`;
+      const result = t.result
+        ? `<span class="badge badge-${t.result.toLowerCase()}">${t.result}</span>`
+        : `<span class="badge badge-open">OPEN</span>`;
+      const pnl    = t.pnl != null
+        ? `<span style="color:${t.pnl>=0?'var(--green)':'var(--red)'}">£${t.pnl.toFixed(2)}</span>`
+        : '—';
+      const emo = t.emotion_score ? `<span style="color:var(--yellow)">${t.emotion_score}/5</span>` : '—';
+      const fr  = t.followed_rules === 1 ? '✓' : t.followed_rules === 0 ? '✗' : '—';
+      const rv  = t.revenge_trading === 1 ? '⚠️' : t.revenge_trading === 0 ? '✓' : '—';
+      return `<tr>
+        <td style="color:var(--muted)">${time}</td>
+        <td>${t.lot_size}</td>
+        <td>${t.stop_loss_pips}</td>
+        <td>£${t.actual_risk.toFixed(2)}</td>
+        <td>${status}</td>
+        <td>${result}</td>
+        <td>${pnl}</td>
+        <td style="text-align:center">${fr}</td>
+        <td style="text-align:center">${rv}</td>
+        <td style="text-align:center">${emo}</td>
+      </tr>`;
+    }).join('');
+
+    body.innerHTML = `<table>
+      <thead><tr>
+        <th>Time</th><th>Lots</th><th>SL</th><th>Risk</th>
+        <th>Check</th><th>Result</th><th>P&L</th>
+        <th>Rules?</th><th>Revenge?</th><th>Emo</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  // ── Violations ─────────────────────────────────────────────────────────────
+  function renderViolations(v) {
+    if (!v) return;
+
+    document.getElementById('violations-stats').innerHTML = `
+      <div class="vstat-card">
+        <div class="vstat-number" style="color:var(--red)">${v.total_this_month}</div>
+        <div class="vstat-label">Violations this month</div>
+      </div>
+      <div class="vstat-card">
+        <div class="vstat-number" style="color:var(--red)">£${v.violation_cost.toFixed(2)}</div>
+        <div class="vstat-label">Cost of violations (losses)</div>
+      </div>
+      <div class="vstat-card">
+        <div class="vstat-number" style="color:var(--purple)">${v.today}</div>
+        <div class="vstat-label">Violations today</div>
+      </div>
+    `;
+
+    const list = document.getElementById('violations-list');
+    if (!v.recent || !v.recent.length) {
+      list.innerHTML = '<div class="empty-state">No violations recorded yet 🎉</div>';
+      return;
+    }
+
+    const typeColors = {
+      RISK_EXCEEDED:      '',
+      NO_STOP_LOSS:       '',
+      REVENGE_TRADE:      '',
+      RULES_NOT_FOLLOWED: '',
+      LOSS_STREAK:        'vtype-streak',
+      DAILY_LIMIT:        'vtype-daily'
+    };
+
+    list.innerHTML = `<div style="padding:4px 20px">${v.recent.map(vr => {
+      const cls  = typeColors[vr.violation_type] || '';
+      const time = new Date(vr.violated_at).toLocaleString('en-GB', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      return `<div class="violation-row">
+        <div>
+          <span class="vtype ${cls}">${vr.violation_type.replace(/_/g,' ')}</span>
+          <span style="font-size:12px;color:var(--muted);margin-left:10px">${vr.detail || ''}</span>
+        </div>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${time}</span>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  // ── Insights ───────────────────────────────────────────────────────────────
+  function renderInsights(insights) {
+    if (!insights) return;
+
+    const compDiv = document.getElementById('insights-comparisons');
+    if (!insights.comparisons || !insights.comparisons.length) {
+      compDiv.innerHTML = '<div class="no-data">Complete at least 3 trades with checklist answers to see insights</div>';
+    } else {
+      compDiv.innerHTML = insights.comparisons.map(c => {
+        const yesColor = c.yes_wr >= 50 ? 'var(--green)' : 'var(--red)';
+        const noColor  = c.no_wr  >= 50 ? 'var(--green)' : 'var(--red)';
+        return `<div class="insight-card" style="margin-bottom:12px">
+          <div class="insight-label">${c.label}</div>
+          <div class="insight-bars">
+            <div class="insight-bar-row">
+              <span class="insight-bar-label">Yes (${c.yes_n})</span>
+              <div class="insight-bar-bg">
+                <div class="insight-bar-fill" style="width:${c.yes_wr||0}%;background:${yesColor}"></div>
+              </div>
+              <span class="insight-bar-val">${c.yes_wr != null ? c.yes_wr+'%' : 'N/A'}</span>
+            </div>
+            <div class="insight-bar-row">
+              <span class="insight-bar-label">No (${c.no_n})</span>
+              <div class="insight-bar-bg">
+                <div class="insight-bar-fill" style="width:${c.no_wr||0}%;background:${noColor}"></div>
+              </div>
+              <span class="insight-bar-val">${c.no_wr != null ? c.no_wr+'%' : 'N/A'}</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    const emoDiv = document.getElementById('insights-emotion');
+    if (!insights.emotion || !insights.emotion.length) {
+      emoDiv.innerHTML = '<div class="no-data">Complete trades with emotion scores to see patterns</div>';
+    } else {
+      const labels = { 1:'😌 Calm', 2:'🙂 Good', 3:'😐 Neutral', 4:'😤 Stressed', 5:'😡 Emotional' };
+      emoDiv.innerHTML = `<div class="emotion-grid">${insights.emotion.map(e => {
+        const color = e.win_rate >= 50 ? 'var(--green)' : 'var(--red)';
+        return `<div class="emotion-cell">
+          <div class="score" style="color:${color}">${e.win_rate}%</div>
+          <div class="wr">${labels[e.score] || e.score}</div>
+          <div class="trades">${e.total} trades</div>
+        </div>`;
+      }).join('')}</div>`;
+    }
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  loadDashboard();
+</script>
+</body>
+</html>
