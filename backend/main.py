@@ -5,8 +5,10 @@ Run: py -3.12 -m uvicorn main:app --reload
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import Optional
+import os
 
 from checker import TradeInput, check_trade, check_daily_limits, behaviour_warnings
 from database import (
@@ -73,6 +75,9 @@ class CompleteCooldownRequest(BaseModel):
 
 @app.get("/")
 def root():
+    frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html")
+    if os.path.exists(frontend_path):
+        return FileResponse(frontend_path)
     return {"status": "TradeGuardian AI v0.2 running"}
 
 
